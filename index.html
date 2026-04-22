@@ -1,0 +1,1602 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>专注计时 - 提升效率的多人专注平台</title>
+  <!-- Tailwind CSS v3 -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Font Awesome -->
+  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+  <!-- 统一的 Tailwind 配置 -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#111827',
+            secondary: '#374151',
+            accent: '#6B7280',
+            light: '#F3F4F6',
+            dark: '#1F2937'
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+          },
+          animation: {
+            'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+          }
+        }
+      }
+    }
+  </script>
+  <style type="text/tailwindcss">
+    @layer utilities {
+      .text-shadow {
+        text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      }
+      .glass {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+      .dark-glass {
+        background: rgba(0, 0, 0, 0.3);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+      }
+    }
+  </style>
+  <style>
+    /* 自定义样式 */
+    body {
+      transition: background-color 0.3s ease, color 0.3s ease;
+    }
+    
+    .timer-circle {
+      transition: stroke-dashoffset 1s linear;
+      transform: rotate(-90deg);
+      transform-origin: 50% 50%;
+    }
+    
+    .tab-content {
+      display: none;
+    }
+    
+    .tab-content.active {
+      display: block;
+    }
+    
+    .fade-in {
+      animation: fadeIn 0.5s ease-in-out;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .pulse {
+      animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+    
+    .slide-in {
+      animation: slideIn 0.3s ease-out;
+    }
+    
+    @keyframes slideIn {
+      from { transform: translateX(-20px); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    
+    /* 自定义滚动条 */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    
+    ::-webkit-scrollbar-track {
+      background: #f1f1f1;
+    }
+    
+    ::-webkit-scrollbar-thumb {
+      background: #888;
+      border-radius: 3px;
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+      background: #555;
+    }
+    
+    .dark ::-webkit-scrollbar-track {
+      background: #2d3748;
+    }
+    
+    .dark ::-webkit-scrollbar-thumb {
+      background: #4a5568;
+    }
+    
+    .dark ::-webkit-scrollbar-thumb:hover {
+      background: #718096;
+    }
+  </style>
+</head>
+<body class="bg-white dark:bg-primary text-gray-800 dark:text-gray-200 min-h-screen">
+  <!-- 顶部导航栏 -->
+  <nav class="fixed top-0 left-0 right-0 z-50 bg-white dark:bg-primary shadow-md dark:shadow-gray-800">
+    <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+      <div class="flex items-center space-x-2">
+        <i class="fa fa-clock-o text-2xl text-accent"></i>
+        <h1 class="text-xl font-bold">专注计时</h1>
+      </div>
+      
+      <div class="flex items-center space-x-4">
+        <button id="leaderboardBtn" class="flex items-center space-x-1 px-3 py-1 rounded-full bg-gray-100 dark:bg-secondary hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+          <i class="fa fa-trophy text-accent"></i>
+          <span>排行榜</span>
+        </button>
+        
+        <button id="statsBtn" class="flex items-center space-x-1 px-3 py-1 rounded-full bg-gray-100 dark:bg-secondary hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+          <i class="fa fa-bar-chart text-accent"></i>
+          <span>统计</span>
+        </button>
+        
+        <button id="settingsBtn" class="flex items-center space-x-1 px-3 py-1 rounded-full bg-gray-100 dark:bg-secondary hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+          <i class="fa fa-cog"></i>
+          <span>设置</span>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- 主内容区 -->
+  <main class="container mx-auto px-4 pt-24 pb-32">
+    <!-- 计时器模式切换 -->
+    <div class="flex justify-center mb-8">
+      <div class="inline-flex rounded-md shadow-sm" role="group">
+        <button id="countdownTab" class="px-6 py-2 text-sm font-medium bg-gray-100 dark:bg-secondary rounded-l-lg hover:bg-gray-200 dark:hover:bg-gray-700 focus:z-10 focus:ring-2 focus:ring-accent active">
+          倒计时
+        </button>
+        <button id="stopwatchTab" class="px-6 py-2 text-sm font-medium bg-gray-100 dark:bg-secondary rounded-r-lg hover:bg-gray-200 dark:hover:bg-gray-700 focus:z-10 focus:ring-2 focus:ring-accent">
+          正计时
+        </button>
+      </div>
+    </div>
+
+    <!-- 计时器显示区 -->
+    <div class="flex justify-center mb-8">
+      <div class="relative w-64 h-64 md:w-80 md:h-80">
+        <!-- 圆形进度条 -->
+        <svg class="w-full h-full" viewBox="0 0 100 100">
+          <!-- 背景圆环 -->
+          <circle class="text-gray-200 dark:text-gray-700" stroke-width="4" stroke="currentColor" fill="transparent" r="40" cx="50" cy="50" />
+          <!-- 进度圆环 -->
+          <circle id="timerProgress" class="timer-circle text-accent" stroke-width="4" stroke="currentColor" fill="transparent" r="40" cx="50" cy="50" stroke-dasharray="251.2" stroke-dashoffset="0" />
+        </svg>
+        
+        <!-- 时间显示 -->
+        <div class="absolute inset-0 flex flex-col items-center justify-center">
+          <div id="timeDisplay" class="text-5xl md:text-6xl font-bold mb-2">25:00</div>
+          <div id="taskNameDisplay" class="text-lg text-center max-w-[80%] truncate">未命名任务</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 任务名称输入 -->
+    <div class="flex justify-center mb-8">
+      <div class="relative w-full max-w-md">
+        <input type="text" id="taskNameInput" placeholder="输入任务名称" class="w-full px-4 py-2 text-center border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-secondary focus:outline-none focus:ring-2 focus:ring-accent">
+        <button id="saveTaskBtn" class="absolute right-2 top-1/2 transform -translate-y-1/2 text-accent hover:text-amber-600">
+          <i class="fa fa-check"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- 倒计时设置 (默认显示) -->
+    <div id="countdownSettings" class="tab-content active flex flex-col items-center mb-8">
+      <div class="grid grid-cols-3 gap-4 w-full max-w-md mb-4">
+        <div class="text-center">
+          <button id="decreaseHours" class="w-10 h-10 rounded-full bg-gray-100 dark:bg-secondary flex items-center justify-center mx-auto mb-1 hover:bg-gray-200 dark:hover:bg-gray-700">
+            <i class="fa fa-minus"></i>
+          </button>
+          <span id="hoursDisplay" class="text-2xl font-bold">0</span>
+          <button id="increaseHours" class="w-10 h-10 rounded-full bg-gray-100 dark:bg-secondary flex items-center justify-center mx-auto mt-1 hover:bg-gray-200 dark:hover:bg-gray-700">
+            <i class="fa fa-plus"></i>
+          </button>
+          <div class="text-sm text-gray-500 dark:text-gray-400">小时</div>
+        </div>
+        
+        <div class="text-center">
+          <button id="decreaseMinutes" class="w-10 h-10 rounded-full bg-gray-100 dark:bg-secondary flex items-center justify-center mx-auto mb-1 hover:bg-gray-200 dark:hover:bg-gray-700">
+            <i class="fa fa-minus"></i>
+          </button>
+          <span id="minutesDisplay" class="text-2xl font-bold">25</span>
+          <button id="increaseMinutes" class="w-10 h-10 rounded-full bg-gray-100 dark:bg-secondary flex items-center justify-center mx-auto mt-1 hover:bg-gray-200 dark:hover:bg-gray-700">
+            <i class="fa fa-plus"></i>
+          </button>
+          <div class="text-sm text-gray-500 dark:text-gray-400">分钟</div>
+        </div>
+        
+        <div class="text-center">
+          <button id="decreaseSeconds" class="w-10 h-10 rounded-full bg-gray-100 dark:bg-secondary flex items-center justify-center mx-auto mb-1 hover:bg-gray-200 dark:hover:bg-gray-700">
+            <i class="fa fa-minus"></i>
+          </button>
+          <span id="secondsDisplay" class="text-2xl font-bold">0</span>
+          <button id="increaseSeconds" class="w-10 h-10 rounded-full bg-gray-100 dark:bg-secondary flex items-center justify-center mx-auto mt-1 hover:bg-gray-200 dark:hover:bg-gray-700">
+            <i class="fa fa-plus"></i>
+          </button>
+          <div class="text-sm text-gray-500 dark:text-gray-400">秒钟</div>
+        </div>
+      </div>
+      
+      <div class="flex flex-wrap justify-center gap-2">
+        <button class="preset-btn px-3 py-1 rounded-full bg-gray-100 dark:bg-secondary hover:bg-gray-200 dark:hover:bg-gray-700" data-minutes="5">5分钟</button>
+        <button class="preset-btn px-3 py-1 rounded-full bg-gray-100 dark:bg-secondary hover:bg-gray-200 dark:hover:bg-gray-700" data-minutes="15">15分钟</button>
+        <button class="preset-btn px-3 py-1 rounded-full bg-gray-100 dark:bg-secondary hover:bg-gray-200 dark:hover:bg-gray-700" data-minutes="25">25分钟</button>
+        <button class="preset-btn px-3 py-1 rounded-full bg-gray-100 dark:bg-secondary hover:bg-gray-200 dark:hover:bg-gray-700" data-minutes="45">45分钟</button>
+        <button class="preset-btn px-3 py-1 rounded-full bg-gray-100 dark:bg-secondary hover:bg-gray-200 dark:hover:bg-gray-700" data-minutes="60">1小时</button>
+      </div>
+    </div>
+
+    <!-- 正计时设置 (默认隐藏) -->
+    <div id="stopwatchSettings" class="tab-content hidden flex flex-col items-center mb-8">
+      <div class="text-center text-gray-500 dark:text-gray-400 mb-4">
+        <p>点击开始按钮启动正计时</p>
+        <p class="text-sm">可以随时暂停和继续</p>
+      </div>
+      
+      <div class="bg-gray-100 dark:bg-secondary rounded-lg p-4 w-full max-w-md">
+        <h3 class="text-lg font-semibold mb-2">今日专注统计</h3>
+        <div class="flex justify-between">
+          <span>今日专注时长:</span>
+          <span id="todayFocusTime" class="font-bold">00:00:00</span>
+        </div>
+        <div class="flex justify-between mt-1">
+          <span>专注次数:</span>
+          <span id="focusCount" class="font-bold">0</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 控制按钮 -->
+    <div class="flex justify-center space-x-4">
+      <button id="startBtn" class="px-8 py-3 bg-accent hover:bg-amber-600 text-white font-medium rounded-lg shadow-lg hover:shadow-xl transition-all flex items-center space-x-2">
+        <i class="fa fa-play"></i>
+        <span>开始</span>
+      </button>
+      
+      <button id="pauseBtn" class="px-8 py-3 bg-gray-500 hover:bg-gray-600 text-white font-medium rounded-lg shadow-lg hover:shadow-xl transition-all flex items-center space-x-2 hidden">
+        <i class="fa fa-pause"></i>
+        <span>暂停</span>
+      </button>
+      
+      <button id="resetBtn" class="px-8 py-3 bg-gray-300 hover:bg-gray-400 text-gray-800 font-medium rounded-lg shadow-lg hover:shadow-xl transition-all flex items-center space-x-2">
+        <i class="fa fa-refresh"></i>
+        <span>重置</span>
+      </button>
+    </div>
+  </main>
+
+  <!-- 底部功能区 -->
+  <footer class="fixed bottom-0 left-0 right-0 bg-white dark:bg-primary shadow-[0_-2px_10px_rgba(0,0,0,0.1)] dark:shadow-[0_-2px_10px_rgba(0,0,0,0.3)]">
+    <div class="container mx-auto px-4 py-4">
+      <div class="flex justify-around">
+        <button id="historyBtn" class="flex flex-col items-center justify-center">
+          <i class="fa fa-history text-xl"></i>
+          <span class="text-xs mt-1">历史</span>
+        </button>
+        
+        <button id="shareBtn" class="flex flex-col items-center justify-center">
+          <i class="fa fa-share-alt text-xl"></i>
+          <span class="text-xs mt-1">分享</span>
+        </button>
+        
+        <button id="friendsBtn" class="flex flex-col items-center justify-center">
+          <i class="fa fa-users text-xl"></i>
+          <span class="text-xs mt-1">好友</span>
+        </button>
+        
+        <button id="profileBtn" class="flex flex-col items-center justify-center">
+          <i class="fa fa-user text-xl"></i>
+          <span class="text-xs mt-1">我的</span>
+        </button>
+      </div>
+    </div>
+  </footer>
+
+  <!-- 模态框 - 分享 -->
+  <div id="shareModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+    <div class="bg-white dark:bg-secondary rounded-lg shadow-xl p-6 w-full max-w-md mx-4 fade-in">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-xl font-bold">分享专注</h3>
+        <button class="close-modal text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+          <i class="fa fa-times"></i>
+        </button>
+      </div>
+      
+      <div class="mb-4">
+        <p class="text-center mb-4">邀请好友一起专注，共同提升效率！</p>
+        
+        <div class="flex justify-center space-x-4 mb-4">
+          <button class="share-platform-btn flex flex-col items-center justify-center p-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors">
+            <i class="fa fa-weixin text-2xl"></i>
+            <span class="text-xs mt-1">微信</span>
+          </button>
+          
+          <button class="share-platform-btn flex flex-col items-center justify-center p-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+            <i class="fa fa-qq text-2xl"></i>
+            <span class="text-xs mt-1">QQ</span>
+          </button>
+          
+          <button class="share-platform-btn flex flex-col items-center justify-center p-3 bg-blue-400 text-white rounded-lg hover:bg-blue-500 transition-colors">
+            <i class="fa fa-link text-2xl"></i>
+            <span class="text-xs mt-1">复制链接</span>
+          </button>
+        </div>
+        
+        <div class="bg-gray-100 dark:bg-gray-700 p-3 rounded-md">
+          <p class="text-sm text-center">分享码: <span id="shareCode" class="font-bold">ABCD1234</span></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 模态框 - 排行榜 -->
+  <div id="leaderboardModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+    <div class="bg-white dark:bg-secondary rounded-lg shadow-xl p-6 w-full max-w-md mx-4 max-h-[80vh] flex flex-col fade-in">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-xl font-bold">专注排行榜</h3>
+        <button class="close-modal text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+          <i class="fa fa-times"></i>
+        </button>
+      </div>
+      
+      <div class="flex mb-4 border-b border-gray-200 dark:border-gray-600">
+        <button class="leaderboard-tab px-4 py-2 text-sm font-medium border-b-2 border-accent text-accent" data-period="today">今日</button>
+        <button class="leaderboard-tab px-4 py-2 text-sm font-medium border-b-2 border-transparent hover:text-accent" data-period="week">本周</button>
+        <button class="leaderboard-tab px-4 py-2 text-sm font-medium border-b-2 border-transparent hover:text-accent" data-period="all">总榜</button>
+      </div>
+      
+      <div class="overflow-y-auto flex-grow">
+        <table class="w-full">
+          <thead class="text-left">
+            <tr>
+              <th class="py-2">排名</th>
+              <th class="py-2">用户</th>
+              <th class="py-2 text-right">专注时长</th>
+            </tr>
+          </thead>
+          <tbody id="leaderboardTableBody">
+            <!-- 排行榜数据将通过JavaScript动态填充 -->
+            <tr class="border-b border-gray-100 dark:border-gray-700">
+              <td class="py-3">1</td>
+              <td class="py-3 flex items-center">
+                <div class="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center mr-2">
+                  <i class="fa fa-user text-gray-500 dark:text-gray-400"></i>
+                </div>
+                <span>用户1</span>
+              </td>
+              <td class="py-3 text-right font-medium">05:32:18</td>
+            </tr>
+            <tr class="border-b border-gray-100 dark:border-gray-700">
+              <td class="py-3">2</td>
+              <td class="py-3 flex items-center">
+                <div class="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center mr-2">
+                  <i class="fa fa-user text-gray-500 dark:text-gray-400"></i>
+                </div>
+                <span>用户2</span>
+              </td>
+              <td class="py-3 text-right font-medium">04:45:30</td>
+            </tr>
+            <tr class="border-b border-gray-100 dark:border-gray-700">
+              <td class="py-3">3</td>
+              <td class="py-3 flex items-center">
+                <div class="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center mr-2">
+                  <i class="fa fa-user text-gray-500 dark:text-gray-400"></i>
+                </div>
+                <span>用户3</span>
+              </td>
+              <td class="py-3 text-right font-medium">03:20:45</td>
+            </tr>
+            <tr class="border-b border-gray-100 dark:border-gray-700">
+              <td class="py-3">4</td>
+              <td class="py-3 flex items-center">
+                <div class="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center mr-2">
+                  <i class="fa fa-user text-gray-500 dark:text-gray-400"></i>
+                </div>
+                <span>用户4</span>
+              </td>
+              <td class="py-3 text-right font-medium">02:55:12</td>
+            </tr>
+            <tr class="border-b border-gray-100 dark:border-gray-700">
+              <td class="py-3">5</td>
+              <td class="py-3 flex items-center">
+                <div class="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center mr-2">
+                  <i class="fa fa-user text-gray-500 dark:text-gray-400"></i>
+                </div>
+                <span>我</span>
+              </td>
+              <td class="py-3 text-right font-medium">02:30:00</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- 模态框 - 统计 -->
+  <div id="statsModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+    <div class="bg-white dark:bg-secondary rounded-lg shadow-xl p-6 w-full max-w-md mx-4 max-h-[80vh] flex flex-col fade-in">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-xl font-bold">专注统计</h3>
+        <button class="close-modal text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+          <i class="fa fa-times"></i>
+        </button>
+      </div>
+      
+      <div class="flex mb-4 border-b border-gray-200 dark:border-gray-600">
+        <button class="stats-tab px-4 py-2 text-sm font-medium border-b-2 border-accent text-accent" data-period="day">日</button>
+        <button class="stats-tab px-4 py-2 text-sm font-medium border-b-2 border-transparent hover:text-accent" data-period="week">周</button>
+        <button class="stats-tab px-4 py-2 text-sm font-medium border-b-2 border-transparent hover:text-accent" data-period="month">月</button>
+      </div>
+      
+      <div class="flex-grow">
+        <div class="mb-6">
+          <h4 class="text-lg font-semibold mb-2">专注时长趋势</h4>
+          <div class="h-48">
+            <canvas id="focusTimeChart"></canvas>
+          </div>
+        </div>
+        
+        <div class="mb-6">
+          <h4 class="text-lg font-semibold mb-2">任务类型分布</h4>
+          <div class="h-48">
+            <canvas id="taskTypeChart"></canvas>
+          </div>
+        </div>
+        
+        <div>
+          <h4 class="text-lg font-semibold mb-2">效率分析</h4>
+          <div class="bg-gray-100 dark:bg-gray-700 p-3 rounded-md">
+            <div class="flex justify-between mb-1">
+              <span>平均专注时长:</span>
+              <span id="avgFocusTime" class="font-bold">45分钟</span>
+            </div>
+            <div class="flex justify-between mb-1">
+              <span>最长单次专注:</span>
+              <span id="maxFocusTime" class="font-bold">2小时15分钟</span>
+            </div>
+            <div class="flex justify-between">
+              <span>专注完成率:</span>
+              <span id="completionRate" class="font-bold">85%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 模态框 - 设置 -->
+  <div id="settingsModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+    <div class="bg-white dark:bg-secondary rounded-lg shadow-xl p-6 w-full max-w-md mx-4 max-h-[80vh] flex flex-col fade-in">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-xl font-bold">设置</h3>
+        <button class="close-modal text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+          <i class="fa fa-times"></i>
+        </button>
+      </div>
+      
+      <div class="flex-grow">
+        <div class="mb-6">
+          <h4 class="text-lg font-semibold mb-3">用户信息</h4>
+          <div class="mb-3">
+            <label class="block text-sm font-medium mb-1">用户名</label>
+            <input type="text" id="userNameInput" placeholder="输入用户名" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-accent">
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">头像</label>
+            <div class="flex items-center">
+              <div class="w-12 h-12 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center mr-3">
+                <i class="fa fa-user text-gray-500 dark:text-gray-400 text-xl"></i>
+              </div>
+              <button class="px-3 py-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md text-sm">更换头像</button>
+            </div>
+          </div>
+        </div>
+        
+        <div class="mb-6">
+          <h4 class="text-lg font-semibold mb-3">通知设置</h4>
+          <div class="flex items-center justify-between mb-2">
+            <span>计时结束提醒</span>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" class="sr-only peer" checked>
+              <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-accent/20 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-accent"></div>
+            </label>
+          </div>
+          <div class="flex items-center justify-between mb-2">
+            <span>好友专注提醒</span>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" class="sr-only peer" checked>
+              <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-accent/20 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-accent"></div>
+            </label>
+          </div>
+          <div class="flex items-center justify-between">
+            <span>每日统计报告</span>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" class="sr-only peer">
+              <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-accent/20 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-accent"></div>
+            </label>
+          </div>
+        </div>
+        
+        <div>
+          <h4 class="text-lg font-semibold mb-3">其他设置</h4>
+          <div class="flex items-center justify-between mb-2">
+            <span>深色模式</span>
+            <label class="relative inline-flex items-center cursor-pointer" id="darkModeToggle">
+              <input type="checkbox" class="sr-only peer" id="darkModeCheckbox">
+              <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-accent/20 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-accent"></div>
+            </label>
+          </div>
+          <div class="flex items-center justify-between mb-2">
+            <span>自动保存记录</span>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" class="sr-only peer" checked>
+              <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-accent/20 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-accent"></div>
+            </label>
+          </div>
+          <div class="flex items-center justify-between">
+            <span>数据导出</span>
+            <button class="px-3 py-1 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md text-sm">导出</button>
+          </div>
+        </div>
+      </div>
+      
+      <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600">
+        <button id="saveSettingsBtn" class="w-full py-2 bg-accent hover:bg-amber-600 text-white font-medium rounded-lg transition-colors">
+          保存设置
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 模态框 - 历史记录 -->
+  <div id="historyModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+    <div class="bg-white dark:bg-secondary rounded-lg shadow-xl p-6 w-full max-w-md mx-4 max-h-[80vh] flex flex-col fade-in">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-xl font-bold">专注历史</h3>
+        <button class="close-modal text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+          <i class="fa fa-times"></i>
+        </button>
+      </div>
+      
+      <div class="flex mb-4 border-b border-gray-200 dark:border-gray-600">
+        <button class="history-tab px-4 py-2 text-sm font-medium border-b-2 border-accent text-accent" data-period="today">今日</button>
+        <button class="history-tab px-4 py-2 text-sm font-medium border-b-2 border-transparent hover:text-accent" data-period="week">本周</button>
+        <button class="history-tab px-4 py-2 text-sm font-medium border-b-2 border-transparent hover:text-accent" data-period="all">全部</button>
+      </div>
+      
+      <div class="overflow-y-auto flex-grow">
+        <div id="historyList">
+          <!-- 历史记录将通过JavaScript动态填充 -->
+          <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 mb-3">
+            <div class="flex justify-between items-center">
+              <h4 class="font-medium">完成项目报告</h4>
+              <span class="text-sm text-gray-500 dark:text-gray-400">今天 14:30</span>
+            </div>
+            <div class="flex justify-between mt-1">
+              <span class="text-sm text-gray-500 dark:text-gray-400">倒计时</span>
+              <span class="font-medium">45分钟</span>
+            </div>
+          </div>
+          
+          <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 mb-3">
+            <div class="flex justify-between items-center">
+              <h4 class="font-medium">阅读专业书籍</h4>
+              <span class="text-sm text-gray-500 dark:text-gray-400">今天 10:15</span>
+            </div>
+            <div class="flex justify-between mt-1">
+              <span class="text-sm text-gray-500 dark:text-gray-400">正计时</span>
+              <span class="font-medium">1小时20分钟</span>
+            </div>
+          </div>
+          
+          <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 mb-3">
+            <div class="flex justify-between items-center">
+              <h4 class="font-medium">学习编程语言</h4>
+              <span class="text-sm text-gray-500 dark:text-gray-400">昨天 19:00</span>
+            </div>
+            <div class="flex justify-between mt-1">
+              <span class="text-sm text-gray-500 dark:text-gray-400">倒计时</span>
+              <span class="font-medium">1小时</span>
+            </div>
+          </div>
+          
+          <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+            <div class="flex justify-between items-center">
+              <h4 class="font-medium">健身锻炼</h4>
+              <span class="text-sm text-gray-500 dark:text-gray-400">昨天 07:30</span>
+            </div>
+            <div class="flex justify-between mt-1">
+              <span class="text-sm text-gray-500 dark:text-gray-400">正计时</span>
+              <span class="font-medium">30分钟</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 模态框 - 好友 -->
+  <div id="friendsModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+    <div class="bg-white dark:bg-secondary rounded-lg shadow-xl p-6 w-full max-w-md mx-4 max-h-[80vh] flex flex-col fade-in">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-xl font-bold">好友</h3>
+        <button class="close-modal text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+          <i class="fa fa-times"></i>
+        </button>
+      </div>
+      
+      <div class="flex mb-4 border-b border-gray-200 dark:border-gray-600">
+        <button class="friends-tab px-4 py-2 text-sm font-medium border-b-2 border-accent text-accent" data-tab="online">在线 (2)</button>
+        <button class="friends-tab px-4 py-2 text-sm font-medium border-b-2 border-transparent hover:text-accent" data-tab="all">全部</button>
+      </div>
+      
+      <div class="overflow-y-auto flex-grow">
+        <div id="friendsList">
+          <!-- 好友列表将通过JavaScript动态填充 -->
+          <div class="flex items-center justify-between p-3 border-b border-gray-100 dark:border-gray-700">
+            <div class="flex items-center">
+              <div class="relative">
+                <div class="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center mr-3">
+                  <i class="fa fa-user text-gray-500 dark:text-gray-400"></i>
+                </div>
+                <div class="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-gray-800"></div>
+              </div>
+              <div>
+                <div class="font-medium">张三</div>
+                <div class="text-xs text-gray-500 dark:text-gray-400">正在专注: 编程学习</div>
+              </div>
+            </div>
+            <div class="text-right">
+              <div class="font-medium">25:00</div>
+              <div class="text-xs text-gray-500 dark:text-gray-400">倒计时</div>
+            </div>
+          </div>
+          
+          <div class="flex items-center justify-between p-3 border-b border-gray-100 dark:border-gray-700">
+            <div class="flex items-center">
+              <div class="relative">
+                <div class="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center mr-3">
+                  <i class="fa fa-user text-gray-500 dark:text-gray-400"></i>
+                </div>
+                <div class="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-gray-800"></div>
+              </div>
+              <div>
+                <div class="font-medium">李四</div>
+                <div class="text-xs text-gray-500 dark:text-gray-400">正在专注: 英语阅读</div>
+              </div>
+            </div>
+            <div class="text-right">
+              <div class="font-medium">45:00</div>
+              <div class="text-xs text-gray-500 dark:text-gray-400">倒计时</div>
+            </div>
+          </div>
+          
+          <div class="flex items-center justify-between p-3 border-b border-gray-100 dark:border-gray-700">
+            <div class="flex items-center">
+              <div class="relative">
+                <div class="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center mr-3">
+                  <i class="fa fa-user text-gray-500 dark:text-gray-400"></i>
+                </div>
+                <div class="absolute bottom-0 right-0 w-3 h-3 bg-gray-400 rounded-full border-2 border-white dark:border-gray-800"></div>
+              </div>
+              <div>
+                <div class="font-medium">王五</div>
+                <div class="text-xs text-gray-500 dark:text-gray-400">上次在线: 1小时前</div>
+              </div>
+            </div>
+            <div class="text-right">
+              <div class="font-medium">03:45:12</div>
+              <div class="text-xs text-gray-500 dark:text-gray-400">今日总时长</div>
+            </div>
+          </div>
+          
+          <div class="flex items-center justify-between p-3">
+            <div class="flex items-center">
+              <div class="relative">
+                <div class="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center mr-3">
+                  <i class="fa fa-user text-gray-500 dark:text-gray-400"></i>
+                </div>
+                <div class="absolute bottom-0 right-0 w-3 h-3 bg-gray-400 rounded-full border-2 border-white dark:border-gray-800"></div>
+              </div>
+              <div>
+                <div class="font-medium">赵六</div>
+                <div class="text-xs text-gray-500 dark:text-gray-400">上次在线: 昨天</div>
+              </div>
+            </div>
+            <div class="text-right">
+              <div class="font-medium">05:20:30</div>
+              <div class="text-xs text-gray-500 dark:text-gray-400">昨日总时长</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600">
+        <button id="addFriendBtn" class="w-full py-2 bg-accent hover:bg-amber-600 text-white font-medium rounded-lg transition-colors flex items-center justify-center">
+          <i class="fa fa-plus mr-2"></i>
+          <span>添加好友</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 模态框 - 个人中心 -->
+  <div id="profileModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+    <div class="bg-white dark:bg-secondary rounded-lg shadow-xl p-6 w-full max-w-md mx-4 max-h-[80vh] flex flex-col fade-in">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-xl font-bold">个人中心</h3>
+        <button class="close-modal text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+          <i class="fa fa-times"></i>
+        </button>
+      </div>
+      
+      <div class="flex flex-col items-center mb-6">
+        <div class="w-24 h-24 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center mb-4">
+          <i class="fa fa-user text-gray-500 dark:text-gray-400 text-4xl"></i>
+        </div>
+        <h4 id="profileUserName" class="text-xl font-bold mb-1">用户名</h4>
+        <p class="text-gray-500 dark:text-gray-400">专注达人</p>
+      </div>
+      
+      <div class="grid grid-cols-3 gap-4 mb-6">
+        <div class="bg-gray-100 dark:bg-gray-700 rounded-lg p-3 text-center">
+          <div id="totalFocusDays" class="text-2xl font-bold mb-1">30</div>
+          <div class="text-sm text-gray-500 dark:text-gray-400">专注天数</div>
+        </div>
+        
+        <div class="bg-gray-100 dark:bg-gray-700 rounded-lg p-3 text-center">
+          <div id="totalFocusHours" class="text-2xl font-bold mb-1">120</div>
+          <div class="text-sm text-gray-500 dark:text-gray-400">总专注时</div>
+        </div>
+        
+        <div class="bg-gray-100 dark:bg-gray-700 rounded-lg p-3 text-center">
+          <div id="focusStreak" class="text-2xl font-bold mb-1">7</div>
+          <div class="text-sm text-gray-500 dark:text-gray-400">连续天数</div>
+        </div>
+      </div>
+      
+      <div class="mb-6">
+        <h4 class="text-lg font-semibold mb-3">成就徽章</h4>
+        <div class="grid grid-cols-4 gap-3">
+          <div class="flex flex-col items-center">
+            <div class="w-12 h-12 rounded-full bg-yellow-100 dark:bg-yellow-900 flex items-center justify-center mb-1">
+              <i class="fa fa-star text-yellow-500 dark:text-yellow-400"></i>
+            </div>
+            <span class="text-xs text-center">初学者</span>
+          </div>
+          
+          <div class="flex flex-col items-center">
+            <div class="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center mb-1">
+              <i class="fa fa-certificate text-blue-500 dark:text-blue-400"></i>
+            </div>
+            <span class="text-xs text-center">坚持不懈</span>
+          </div>
+          
+          <div class="flex flex-col items-center">
+            <div class="w-12 h-12 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center mb-1">
+              <i class="fa fa-trophy text-purple-500 dark:text-purple-400"></i>
+            </div>
+            <span class="text-xs text-center">效率大师</span>
+          </div>
+          
+          <div class="flex flex-col items-center">
+            <div class="w-12 h-12 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center mb-1 opacity-50">
+              <i class="fa fa-lock text-gray-500 dark:text-gray-400"></i>
+            </div>
+            <span class="text-xs text-center text-gray-500 dark:text-gray-400">未解锁</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="space-y-3">
+        <button class="w-full py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors flex items-center justify-between">
+          <div class="flex items-center">
+            <i class="fa fa-shield mr-3 text-gray-500 dark:text-gray-400"></i>
+            <span>隐私设置</span>
+          </div>
+          <i class="fa fa-chevron-right text-gray-400"></i>
+        </button>
+        
+        <button class="w-full py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors flex items-center justify-between">
+          <div class="flex items-center">
+            <i class="fa fa-question-circle mr-3 text-gray-500 dark:text-gray-400"></i>
+            <span>帮助与反馈</span>
+          </div>
+          <i class="fa fa-chevron-right text-gray-400"></i>
+        </button>
+        
+        <button class="w-full py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors flex items-center justify-between">
+          <div class="flex items-center">
+            <i class="fa fa-info-circle mr-3 text-gray-500 dark:text-gray-400"></i>
+            <span>关于我们</span>
+          </div>
+          <i class="fa fa-chevron-right text-gray-400"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 通知提示 -->
+  <div id="notification" class="fixed top-20 right-4 bg-white dark:bg-secondary shadow-lg rounded-lg p-4 max-w-xs transform translate-x-full transition-transform duration-300 z-50">
+    <div class="flex items-start">
+      <div class="flex-shrink-0 mt-0.5">
+        <i id="notificationIcon" class="fa fa-check-circle text-green-500 text-xl"></i>
+      </div>
+      <div class="ml-3 w-0 flex-1">
+        <p id="notificationTitle" class="text-sm font-medium">通知标题</p>
+        <p id="notificationMessage" class="mt-1 text-sm text-gray-500 dark:text-gray-400">通知内容</p>
+      </div>
+      <div class="ml-4 flex-shrink-0 flex">
+        <button id="closeNotification" class="bg-white dark:bg-secondary rounded-md inline-flex text-gray-400 hover:text-gray-500 focus:outline-none">
+          <span class="sr-only">关闭</span>
+          <i class="fa fa-times"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 全局变量
+    let timerMode = 'countdown'; // 'countdown' 或 'stopwatch'
+    let timerInterval = null;
+    let startTime = 0;
+    let pausedTime = 0;
+    let remainingTime = 25 * 60; // 默认25分钟
+    let totalDuration = remainingTime;
+    let isTimerRunning = false;
+    let currentTaskName = '未命名任务';
+    let focusRecords = [];
+    let userName = '用户名';
+    let isDarkMode = false;
+    
+    // DOM 元素
+    const countdownTab = document.getElementById('countdownTab');
+    const stopwatchTab = document.getElementById('stopwatchTab');
+    const countdownSettings = document.getElementById('countdownSettings');
+    const stopwatchSettings = document.getElementById('stopwatchSettings');
+    const timeDisplay = document.getElementById('timeDisplay');
+    const taskNameDisplay = document.getElementById('taskNameDisplay');
+    const taskNameInput = document.getElementById('taskNameInput');
+    const saveTaskBtn = document.getElementById('saveTaskBtn');
+    const startBtn = document.getElementById('startBtn');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const timerProgress = document.getElementById('timerProgress');
+    const hoursDisplay = document.getElementById('hoursDisplay');
+    const minutesDisplay = document.getElementById('minutesDisplay');
+    const secondsDisplay = document.getElementById('secondsDisplay');
+    const decreaseHours = document.getElementById('decreaseHours');
+    const increaseHours = document.getElementById('increaseHours');
+    const decreaseMinutes = document.getElementById('decreaseMinutes');
+    const increaseMinutes = document.getElementById('increaseMinutes');
+    const decreaseSeconds = document.getElementById('decreaseSeconds');
+    const increaseSeconds = document.getElementById('increaseSeconds');
+    const presetButtons = document.querySelectorAll('.preset-btn');
+    const todayFocusTime = document.getElementById('todayFocusTime');
+    const focusCount = document.getElementById('focusCount');
+    const shareBtn = document.getElementById('shareBtn');
+    const shareModal = document.getElementById('shareModal');
+    const leaderboardBtn = document.getElementById('leaderboardBtn');
+    const leaderboardModal = document.getElementById('leaderboardModal');
+    const statsBtn = document.getElementById('statsBtn');
+    const statsModal = document.getElementById('statsModal');
+    const settingsBtn = document.getElementById('settingsBtn');
+    const settingsModal = document.getElementById('settingsModal');
+    const historyBtn = document.getElementById('historyBtn');
+    const historyModal = document.getElementById('historyModal');
+    const friendsBtn = document.getElementById('friendsBtn');
+    const friendsModal = document.getElementById('friendsModal');
+    const profileBtn = document.getElementById('profileBtn');
+    const profileModal = document.getElementById('profileModal');
+    const closeModalButtons = document.querySelectorAll('.close-modal');
+    const sharePlatformButtons = document.querySelectorAll('.share-platform-btn');
+    const shareCode = document.getElementById('shareCode');
+    const leaderboardTabs = document.querySelectorAll('.leaderboard-tab');
+    const statsTabs = document.querySelectorAll('.stats-tab');
+    const historyTabs = document.querySelectorAll('.history-tab');
+    const friendsTabs = document.querySelectorAll('.friends-tab');
+    const userNameInput = document.getElementById('userNameInput');
+    const profileUserName = document.getElementById('profileUserName');
+    const darkModeToggle = document.getElementById('darkModeToggle');
+    const darkModeCheckbox = document.getElementById('darkModeCheckbox');
+    const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+    const notification = document.getElementById('notification');
+    const notificationIcon = document.getElementById('notificationIcon');
+    const notificationTitle = document.getElementById('notificationTitle');
+    const notificationMessage = document.getElementById('notificationMessage');
+    const closeNotification = document.getElementById('closeNotification');
+    
+    // 初始化
+    function init() {
+      // 加载用户数据
+      loadUserData();
+      
+      // 更新UI
+      updateTimerDisplay();
+      updateTaskNameDisplay();
+      updateCountdownInputs();
+      updateTodayFocusTime();
+      updateFocusCount();
+      updateProfileInfo();
+      
+      // 检查深色模式
+      checkDarkMode();
+      
+      // 初始化图表
+      initCharts();
+      
+      // 事件监听
+      setupEventListeners();
+    }
+    
+    // 设置事件监听
+    function setupEventListeners() {
+      // 模式切换
+      countdownTab.addEventListener('click', () => switchTimerMode('countdown'));
+      stopwatchTab.addEventListener('click', () => switchTimerMode('stopwatch'));
+      
+      // 任务名称
+      saveTaskBtn.addEventListener('click', saveTaskName);
+      taskNameInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') saveTaskName();
+      });
+      
+      // 计时器控制
+      startBtn.addEventListener('click', startTimer);
+      pauseBtn.addEventListener('click', pauseTimer);
+      resetBtn.addEventListener('click', resetTimer);
+      
+      // 倒计时设置
+      decreaseHours.addEventListener('click', () => adjustCountdownTime('hours', -1));
+      increaseHours.addEventListener('click', () => adjustCountdownTime('hours', 1));
+      decreaseMinutes.addEventListener('click', () => adjustCountdownTime('minutes', -1));
+      increaseMinutes.addEventListener('click', () => adjustCountdownTime('minutes', 1));
+      decreaseSeconds.addEventListener('click', () => adjustCountdownTime('seconds', -1));
+      increaseSeconds.addEventListener('click', () => adjustCountdownTime('seconds', 1));
+      
+      // 预设时间
+      presetButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const minutes = parseInt(btn.dataset.minutes);
+          setCountdownTime(0, minutes, 0);
+        });
+      });
+      
+      // 模态框
+      shareBtn.addEventListener('click', () => openModal(shareModal));
+      leaderboardBtn.addEventListener('click', () => openModal(leaderboardModal));
+      statsBtn.addEventListener('click', () => openModal(statsModal));
+      settingsBtn.addEventListener('click', () => openModal(settingsModal));
+      historyBtn.addEventListener('click', () => openModal(historyModal));
+      friendsBtn.addEventListener('click', () => openModal(friendsModal));
+      profileBtn.addEventListener('click', () => openModal(profileModal));
+      
+      // 关闭模态框
+      closeModalButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const modal = btn.closest('.fixed');
+          closeModal(modal);
+        });
+      });
+      
+      // 分享平台
+      sharePlatformButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const platform = btn.querySelector('span').textContent;
+          shareFocus(platform);
+        });
+      });
+      
+      // 排行榜标签
+      leaderboardTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+          leaderboardTabs.forEach(t => {
+            t.classList.remove('border-accent', 'text-accent');
+            t.classList.add('border-transparent');
+          });
+          tab.classList.remove('border-transparent');
+          tab.classList.add('border-accent', 'text-accent');
+          updateLeaderboard(tab.dataset.period);
+        });
+      });
+      
+      // 统计标签
+      statsTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+          statsTabs.forEach(t => {
+            t.classList.remove('border-accent', 'text-accent');
+            t.classList.add('border-transparent');
+          });
+          tab.classList.remove('border-transparent');
+          tab.classList.add('border-accent', 'text-accent');
+          updateStatsCharts(tab.dataset.period);
+        });
+      });
+      
+      // 历史记录标签
+      historyTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+          historyTabs.forEach(t => {
+            t.classList.remove('border-accent', 'text-accent');
+            t.classList.add('border-transparent');
+          });
+          tab.classList.remove('border-transparent');
+          tab.classList.add('border-accent', 'text-accent');
+          updateHistoryList(tab.dataset.period);
+        });
+      });
+      
+      // 好友标签
+      friendsTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+          friendsTabs.forEach(t => {
+            t.classList.remove('border-accent', 'text-accent');
+            t.classList.add('border-transparent');
+          });
+          tab.classList.remove('border-transparent');
+          tab.classList.add('border-accent', 'text-accent');
+          updateFriendsList(tab.dataset.tab);
+        });
+      });
+      
+      // 设置
+      darkModeToggle.addEventListener('click', toggleDarkMode);
+      saveSettingsBtn.addEventListener('click', saveSettings);
+      
+      // 通知
+      closeNotification.addEventListener('click', hideNotification);
+      
+      // 点击模态框背景关闭
+      document.querySelectorAll('.fixed').forEach(modal => {
+        modal.addEventListener('click', (e) => {
+          if (e.target === modal) {
+            closeModal(modal);
+          }
+        });
+      });
+    }
+    
+    // 切换计时器模式
+    function switchTimerMode(mode) {
+      if (isTimerRunning) return;
+      
+      timerMode = mode;
+      
+      if (mode === 'countdown') {
+        countdownTab.classList.add('active');
+        stopwatchTab.classList.remove('active');
+        countdownSettings.classList.add('active');
+        countdownSettings.classList.remove('hidden');
+        stopwatchSettings.classList.remove('active');
+        stopwatchSettings.classList.add('hidden');
+      } else {
+        countdownTab.classList.remove('active');
+        stopwatchTab.classList.add('active');
+        countdownSettings.classList.remove('active');
+        countdownSettings.classList.add('hidden');
+        stopwatchSettings.classList.add('active');
+        stopwatchSettings.classList.remove('hidden');
+      }
+      
+      resetTimer();
+    }
+    
+    // 开始计时器
+    function startTimer() {
+      if (isTimerRunning) return;
+      
+      isTimerRunning = true;
+      startBtn.classList.add('hidden');
+      pauseBtn.classList.remove('hidden');
+      
+      if (timerMode === 'countdown') {
+        startTime = Date.now() - (totalDuration - remainingTime) * 1000;
+      } else {
+        startTime = Date.now() - pausedTime * 1000;
+      }
+      
+      timerInterval = setInterval(updateTimer, 1000);
+    }
+    
+    // 暂停计时器
+    function pauseTimer() {
+      if (!isTimerRunning) return;
+      
+      isTimerRunning = false;
+      clearInterval(timerInterval);
+      startBtn.classList.remove('hidden');
+      pauseBtn.classList.add('hidden');
+      
+      if (timerMode === 'stopwatch') {
+        pausedTime = (Date.now() - startTime) / 1000;
+      }
+    }
+    
+    // 重置计时器
+    function resetTimer() {
+      isTimerRunning = false;
+      clearInterval(timerInterval);
+      startBtn.classList.remove('hidden');
+      pauseBtn.classList.add('hidden');
+      
+      if (timerMode === 'countdown') {
+        remainingTime = totalDuration;
+        updateCountdownInputs();
+      } else {
+        remainingTime = 0;
+        pausedTime = 0;
+      }
+      
+      updateTimerDisplay();
+      updateProgressCircle();
+    }
+    
+    // 更新计时器
+    function updateTimer() {
+      if (timerMode === 'countdown') {
+        const elapsedTime = Math.floor((Date.now() - startTime) / 1000);
+        remainingTime = Math.max(0, totalDuration - elapsedTime);
+        
+        if (remainingTime === 0) {
+          completeTimer();
+        }
+      } else {
+        remainingTime = Math.floor((Date.now() - startTime) / 1000);
+      }
+      
+      updateTimerDisplay();
+      updateProgressCircle();
+    }
+    
+    // 完成计时器
+    function completeTimer() {
+      isTimerRunning = false;
+      clearInterval(timerInterval);
+      startBtn.classList.remove('hidden');
+      pauseBtn.classList.add('hidden');
+      
+      // 记录专注记录
+      const endTime = new Date();
+      const duration = timerMode === 'countdown' ? totalDuration : remainingTime;
+      
+      const record = {
+        id: generateId(),
+        taskName: currentTaskName,
+        startTime: new Date(endTime - duration * 1000).toISOString(),
+        endTime: endTime.toISOString(),
+        duration: duration,
+        type: timerMode
+      };
+      
+      focusRecords.push(record);
+      saveUserData();
+      
+      // 更新统计
+      updateTodayFocusTime();
+      updateFocusCount();
+      
+      // 显示通知
+      showNotification('专注完成', `恭喜！您已完成 ${formatTime(duration)} 的专注任务: ${currentTaskName}`);
+      
+      // 重置计时器
+      resetTimer();
+    }
+    
+    // 更新计时器显示
+    function updateTimerDisplay() {
+      timeDisplay.textContent = formatTime(remainingTime);
+    }
+    
+    // 更新进度圆环
+    function updateProgressCircle() {
+      const circumference = 2 * Math.PI * 40;
+      let progress = 0;
+      
+      if (timerMode === 'countdown') {
+        progress = (totalDuration - remainingTime) / totalDuration;
+      } else {
+        // 正计时每小时重置一次进度
+        const moduloTime = remainingTime % 3600;
+        progress = moduloTime / 3600;
+      }
+      
+      const offset = circumference - progress * circumference;
+      timerProgress.style.strokeDasharray = `${circumference} ${circumference}`;
+      timerProgress.style.strokeDashoffset = offset;
+    }
+    
+    // 格式化时间
+    function formatTime(seconds) {
+      const hours = Math.floor(seconds / 3600);
+      const minutes = Math.floor((seconds % 3600) / 60);
+      const secs = seconds % 60;
+      
+      if (hours > 0) {
+        return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+      } else {
+        return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+      }
+    }
+    
+    // 保存任务名称
+    function saveTaskName() {
+      const taskName = taskNameInput.value.trim();
+      if (taskName) {
+        currentTaskName = taskName;
+        updateTaskNameDisplay();
+        taskNameInput.value = '';
+      }
+    }
+    
+    // 更新任务名称显示
+    function updateTaskNameDisplay() {
+      taskNameDisplay.textContent = currentTaskName;
+    }
+    
+    // 调整倒计时时间
+    function adjustCountdownTime(unit, amount) {
+      if (isTimerRunning) return;
+      
+      let hours = parseInt(hoursDisplay.textContent);
+      let minutes = parseInt(minutesDisplay.textContent);
+      let seconds = parseInt(secondsDisplay.textContent);
+      
+      switch (unit) {
+        case 'hours':
+          hours = Math.max(0, Math.min(23, hours + amount));
+          break;
+        case 'minutes':
+          minutes = Math.max(0, Math.min(59, minutes + amount));
+          break;
+        case 'seconds':
+          seconds = Math.max(0, Math.min(59, seconds + amount));
+          break;
+      }
+      
+      setCountdownTime(hours, minutes, seconds);
+    }
+    
+    // 设置倒计时时间
+    function setCountdownTime(hours, minutes, seconds) {
+      if (isTimerRunning) return;
+      
+      hoursDisplay.textContent = hours.toString().padStart(2, '0');
+      minutesDisplay.textContent = minutes.toString().padStart(2, '0');
+      secondsDisplay.textContent = seconds.toString().padStart(2, '0');
+      
+      remainingTime = hours * 3600 + minutes * 60 + seconds;
+      totalDuration = remainingTime;
+      
+      updateTimerDisplay();
+      updateProgressCircle();
+    }
+    
+    // 更新倒计时输入
+    function updateCountdownInputs() {
+      const hours = Math.floor(remainingTime / 3600);
+      const minutes = Math.floor((remainingTime % 3600) / 60);
+      const seconds = remainingTime % 60;
+      
+      hoursDisplay.textContent = hours.toString().padStart(2, '0');
+      minutesDisplay.textContent = minutes.toString().padStart(2, '0');
+      secondsDisplay.textContent = seconds.toString().padStart(2, '0');
+    }
+    
+    // 更新今日专注时长
+    function updateTodayFocusTime() {
+      const today = new Date().toDateString();
+      const todayRecords = focusRecords.filter(record => {
+        const recordDate = new Date(record.startTime).toDateString();
+        return recordDate === today;
+      });
+      
+      const totalSeconds = todayRecords.reduce((total, record) => total + record.duration, 0);
+      todayFocusTime.textContent = formatTime(totalSeconds);
+    }
+    
+    // 更新专注次数
+    function updateFocusCount() {
+      const today = new Date().toDateString();
+      const todayRecords = focusRecords.filter(record => {
+        const recordDate = new Date(record.startTime).toDateString();
+        return recordDate === today;
+      });
+      
+      focusCount.textContent = todayRecords.length;
+    }
+    
+    // 更新个人信息
+    function updateProfileInfo() {
+      profileUserName.textContent = userName;
+      userNameInput.value = userName;
+    }
+    
+    // 打开模态框
+    function openModal(modal) {
+      modal.classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+    }
+    
+    // 关闭模态框
+    function closeModal(modal) {
+      modal.classList.add('hidden');
+      document.body.style.overflow = '';
+    }
+    
+    // 分享专注
+    function shareFocus(platform) {
+      // 生成分享码
+      const code = generateShareCode();
+      shareCode.textContent = code;
+      
+      // 模拟分享
+      let message = '';
+      let icon = '';
+      
+      switch (platform) {
+        case '微信':
+          message = '已复制分享链接到剪贴板，请在微信中粘贴分享';
+          icon = 'fa-weixin';
+          break;
+        case 'QQ':
+          message = '已复制分享链接到剪贴板，请在QQ中粘贴分享';
+          icon = 'fa-qq';
+          break;
+        case '复制链接':
+          message = '分享链接已复制到剪贴板';
+          icon = 'fa-link';
+          break;
+      }
+      
+      showNotification('分享成功', message, icon);
+    }
+    
+    // 生成分享码
+    function generateShareCode() {
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+      let code = '';
+      for (let i = 0; i < 8; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      return code;
+    }
+    
+    // 更新排行榜
+    function updateLeaderboard(period) {
+      // 模拟数据
+      const leaderboardData = [
+        { name: '张三', time: 20100 }, // 5小时35分钟
+        { name: '李四', time: 17100 }, // 4小时45分钟
+        { name: '王五', time: 15300 }, // 4小时15分钟
+        { name: '赵六', time: 12600 }, // 3小时30分钟
+        { name: userName, time: 9000 }  // 2小时30分钟
+      ];
+      
+      // 根据时间段筛选数据
+      // 实际应用中应该从服务器获取对应时间段的数据
+      
+      // 更新表格
+      const tableBody = document.getElementById('leaderboardTableBody');
+      tableBody.innerHTML = '';
+      
+      leaderboardData.forEach((user, index) => {
+        const row = document.createElement('tr');
+        row.className = 'border-b border-gray-100 dark:border-gray-700';
+        
+        row.innerHTML = `
+          <td class="py-3">${index + 1}</td>
+          <td class="py-3 flex items-center">
+            <div class="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center mr-2">
+              <i class="fa fa-user text-gray-500 dark:text-gray-400"></i>
+            </div>
+            <span>${user.name}</span>
+          </td>
+          <td class="py-3 text-right font-medium">${formatTime(user.time)}</td>
+        `;
+        
+        tableBody.appendChild(row);
+      });
+    }
+    
+    // 更新统计图表
+    function updateStatsCharts(period) {
+      // 实际应用中应该根据时间段更新图表数据
+      // 这里仅作演示
+    }
+    
+    // 更新历史记录列表
+    function updateHistoryList(period) {
+      // 实际应用中应该根据时间段筛选历史记录
+      // 这里仅作演示
+    }
+    
+    // 更新好友列表
+    function updateFriendsList(tab) {
+      // 实际应用中应该根据标签筛选好友
+      // 这里仅作演示
+    }
+    
+    // 切换深色模式
+    function toggleDarkMode() {
+      isDarkMode = !isDarkMode;
+      darkModeCheckbox.checked = isDarkMode;
+      
+      if (isDarkMode) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+      
+      localStorage.setItem('darkMode', isDarkMode);
+    }
+    
+    // 检查深色模式
+    function checkDarkMode() {
+      const savedMode = localStorage.getItem('darkMode');
+      if (savedMode !== null) {
+        isDarkMode = savedMode === 'true';
+      } else {
+        // 根据系统偏好设置
+        isDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      }
+      
+      darkModeCheckbox.checked = isDarkMode;
+      
+      if (isDarkMode) {
+        document.documentElement.classList.add('dark');
+      }
+    }
+    
+    // 保存设置
+    function saveSettings() {
+      const newUserName = userNameInput.value.trim();
+      if (newUserName) {
+        userName = newUserName;
+        updateProfileInfo();
+      }
+      
+      saveUserData();
+      closeModal(settingsModal);
+      showNotification('设置已保存', '您的设置已成功保存');
+    }
+    
+    // 显示通知
+    function showNotification(title, message, icon = 'fa-check-circle') {
+      notificationTitle.textContent = title;
+      notificationMessage.textContent = message;
+      notificationIcon.className = `fa ${icon} text-green-500 text-xl`;
+      
+      notification.classList.remove('translate-x-full');
+      
+      // 3秒后自动隐藏
+      setTimeout(hideNotification, 3000);
+    }
+    
+    // 隐藏通知
+    function hideNotification() {
+      notification.classList.add('translate-x-full');
+    }
+    
+    // 初始化图表
+    function initCharts() {
+      // 专注时长趋势图
+      const focusTimeCtx = document.getElementById('focusTimeChart').getContext('2d');
+      const focusTimeChart = new Chart(focusTimeCtx, {
+        type: 'line',
+        data: {
+          labels: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'],
+          datasets: [{
+            label: '专注时长(小时)',
+            data: [3.5, 4.2, 2.8, 5.1, 3.9, 6.2, 4.5],
+            borderColor: '#F59E0B',
+            backgroundColor: 'rgba(245, 158, 11, 0.1)',
+            tension: 0.4,
+            fill: true
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: false
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              grid: {
+                color: 'rgba(0, 0, 0, 0.05)'
+              }
+            },
+            x: {
+              grid: {
+                display: false
+              }
+            }
+          }
+        }
+      });
+      
+      // 任务类型分布图
+      const taskTypeCtx = document.getElementById('taskTypeChart').getContext('2d');
+      const taskTypeChart = new Chart(taskTypeCtx, {
+        type: 'doughnut',
+        data: {
+          labels: ['学习', '工作', '阅读', '运动', '其他'],
+          datasets: [{
+            data: [40, 25, 15, 10, 10],
+            backgroundColor: [
+              '#F59E0B',
+              '#3B82F6',
+              '#10B981',
+              '#EF4444',
+              '#8B5CF6'
+            ],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom'
+            }
+          },
+          cutout: '70%'
+        }
+      });
+    }
+    
+    // 加载用户数据
+    function loadUserData() {
+      const savedData = localStorage.getItem('focusTimerData');
+      if (savedData) {
+        const data = JSON.parse(savedData);
+        userName = data.userName || '用户名';
+        focusRecords = data.focusRecords || [];
+      }
+    }
+    
+    // 保存用户数据
+    function saveUserData() {
+      const data = {
+        userName,
+        focusRecords
+      };
+      
+      localStorage.setItem('focusTimerData', JSON.stringify(data));
+    }
+    
+    // 生成唯一ID
+    function generateId() {
+      return Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+    }
+    
+    // 页面加载完成后初始化
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>
